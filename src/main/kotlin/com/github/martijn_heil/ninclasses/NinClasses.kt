@@ -8,10 +8,11 @@ import java.sql.DriverManager
 import java.sql.SQLException
 import java.util.*
 
-private val cache = HashMap<UUID, PlayerClass>()
+private val cache = HashMap<UUID, PlayerClass?>()
 
 class NinClasses : JavaPlugin() {
-    val classes = HashMap<String, () -> PlayerClass>()
+    val classes = HashMap<String, PlayerClass>()
+    var defaultClass: PlayerClass? = null
 
     override fun onEnable() {
         instance = this
@@ -47,8 +48,9 @@ class NinClasses : JavaPlugin() {
         }
     }
 
-    fun registerClass(identifier: String, newInstance: () -> PlayerClass, default: Boolean = false) {
-        classes[identifier] = newInstance
+    fun registerClass(identifier: String, playerClass: PlayerClass, isDefault: Boolean = false) {
+        classes[identifier] = playerClass
+        if(isDefault) defaultClass = playerClass
     }
 
     companion object {
@@ -66,7 +68,7 @@ class NinClasses : JavaPlugin() {
     }
 }
 
-var OfflinePlayer.playerClass: PlayerClass
+var OfflinePlayer.playerClass: PlayerClass?
     get() {
         val tmp = cache[this.uniqueId]
         if(tmp != null) {
@@ -77,8 +79,14 @@ var OfflinePlayer.playerClass: PlayerClass
             stmnt.setString(1, this.uniqueId.toCompressedString())
             val result = stmnt.executeQuery()
             if(!result.next()) throw IllegalStateException("Player(uuid: '" + this.uniqueId.toString() + "') not found in database.")
-            val playerClass = NinClasses.instance.classes[result.getString("player_class")]() ?:
-            stmnt.close()
+            val playerClassId = result.getString("player_class")
+            if(playerClassId == null) { stmnt.close(); return NinClasses.instance.defaultClass }
+            val playerClass = NinClasses.instance.classes[playerClassId]
+            if(playerClass == null) {
+                stmnt.close();
+                this.playerClass = NinClasses.instance.defaultClass;
+                return NinClasses.instance.defaultClass
+            }
             cache[this.uniqueId] = playerClass
             return playerClass
         }
