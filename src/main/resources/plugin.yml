@@ -1,0 +1,4 @@
+name: NinClasses
+version: @version@
+author: Ninjoh
+main: com.github.martijn_heil.ninclasses.NinClasses
